@@ -42,21 +42,64 @@ function safeWrite(socket, data) {
 // --- TCP server ---
 const tcpServer = net.createServer((socket) => {
   const remoteAddress = socket.remoteAddress + ":" + socket.remotePort;
-  console.log("New TCP connection from", remoteAddress);
+  console.log(`\n🔌 New TCP connection from ${remoteAddress}`);
+
+  // IMPORTANT: Keep connection alive - don't close after LK response
+  // Set TCP keepalive to maintain persistent connection
+  socket.setKeepAlive(true, 60000); // Keep alive every 60 seconds
+  socket.setNoDelay(true); // Disable Nagle algorithm for faster response
+  socket.setTimeout(0); // Disable timeout - keep connection open indefinitely
 
   let buffer = "";
+  let deviceImei = null;
+  let connectionStartTime = Date.now();
 
   socket.on("data", async (chunk) => {
-    buffer += chunk.toString();
+    // Log raw data received (both hex and ascii for debugging)
+    const hexData = chunk.toString('hex').toUpperCase();
+    const asciiData = chunk.toString('utf8');
+    console.log(`📥 Raw data received from ${remoteAddress}:`);
+    console.log(`   HEX: ${hexData.substring(0, 100)}${hexData.length > 100 ? '...' : ''}`);
+    console.log(`   ASCII: ${asciiData.substring(0, 100)}${asciiData.length > 100 ? '...' : ''}`);
+    
+    // Check if data is in HEX format (common with GPS devices)
+    // If it starts with hex characters and doesn't contain '[' in ASCII, it might be HEX
+    let dataToProcess = asciiData;
+    
+    // Try to detect if it's HEX: if it's all hex chars and even length, try converting
+    const hexPattern = /^[0-9A-Fa-f\s]+$/;
+    if (hexPattern.test(asciiData.replace(/[\s\n\r]/g, '')) && asciiData.replace(/[\s\n\r]/g, '').length % 2 === 0) {
+      // Might be HEX, try converting
+      try {
+        const hexString = asciiData.replace(/[\s\n\r]/g, '');
+        const converted = Buffer.from(hexString, 'hex').toString('utf8');
+        if (converted.includes('[') && converted.includes(']')) {
+          console.log(`   🔄 Detected HEX format, converted to: ${converted.substring(0, 100)}`);
+          dataToProcess = converted;
+        }
+      } catch (e) {
+        // Not valid HEX, use original
+      }
+    }
+    
+    buffer += dataToProcess;
+    
     // Protocol messages look like: [3G*IMEI*LEN*...]
     // We'll parse full bracketed messages if they come
     // Some devices send full message per packet; others may stream.
     let startIdx = buffer.indexOf("[");
     let endIdx = buffer.indexOf("]");
+    
+    // If no brackets found, log what we have
+    if (startIdx === -1 || endIdx === -1) {
+      console.log(`⚠️ No complete message found yet. Buffer length: ${buffer.length}`);
+      console.log(`   Buffer content: ${buffer.substring(0, 200)}`);
+    }
+    
     while (startIdx !== -1 && endIdx !== -1 && endIdx > startIdx) {
       const message = buffer.slice(startIdx + 1, endIdx); // without brackets
       buffer = buffer.slice(endIdx + 1);
-      console.log("Raw message:", message);
+      console.log(`📨 Parsed message from ${remoteAddress}:`, message);
 
       // Basic parse
       const parts = message.split("*"); // e.g. ["3G","351258...","0009","LK,0,0,21"]
@@ -65,6 +108,10 @@ const tcpServer = net.createServer((socket) => {
         const imei = parts[1];
         const lenField = parts[2];
         const body = parts.slice(3).join("*"); // rest
+
+        deviceImei = imei; // Track IMEI for this socket
+
+        console.log(`📱 Device IMEI: ${imei}, Command: ${body.split(",")[0]}`);
 
         // Update DB + socket map
         try {
@@ -87,19 +134,56 @@ const tcpServer = net.createServer((socket) => {
         socketsByImei.set(imei, socket);
 
         // If Linkkeep (LK) -> reply with short LK ack
+        // CRITICAL: Must reply to ALL LK commands to maintain connection
         if (body.startsWith("LK")) {
           const resp = `[3G*${imei}*0002*LK]`;
           safeWrite(socket, resp);
-          console.log("Replied LK ack for", imei);
+          console.log(`✅ Replied LK ack for IMEI ${imei}`);
         }
 
-        // Optionally log other message types (e.g., UD, AL_LTE, etc.)
-        if (body.startsWith("TS")) {
-          console.log("TS request body:", body);
+        // Handle UD (position data) - no reply needed
+        if (body.startsWith("UD") || body.startsWith("UD_LTE") || body.startsWith("UD_WCDMA")) {
+          console.log(`📍 Position data received from ${imei}`);
+          // Parse position data here if needed
         }
-        // You can add parsing for UD_LTE, AL_LTE, etc. here as needed.
+
+        // Handle UD2 (blind spot data) - no reply needed
+        if (body.startsWith("UD2")) {
+          console.log(`📍 Blind spot data received from ${imei}`);
+        }
+
+        // Handle AL (alarm) - must reply
+        if (body.startsWith("AL") || body.startsWith("AL_LTE")) {
+          const resp = `[3G*${imei}*0002*AL]`;
+          safeWrite(socket, resp);
+          console.log(`🚨 Alarm received from ${imei}, replied confirmation`);
+        }
+
+        // Handle CONFIG - reply to stop constant sending
+        if (body.startsWith("CONFIG")) {
+          const resp = `[3G*${imei}*0008*CONFIG,1]`;
+          safeWrite(socket, resp);
+          console.log(`⚙️ CONFIG received from ${imei}, replied OK`);
+        }
+
+        // Handle TS (device status request)
+        if (body.startsWith("TS")) {
+          console.log(`📊 TS status request from ${imei}`);
+          // Device will reply with status info
+        }
+
+        // Handle other commands
+        if (body.startsWith("VERNO")) {
+          console.log(`📋 Version request from ${imei}`);
+        }
+
+        // Log unknown commands for debugging
+        const commandType = body.split(",")[0];
+        if (!["LK", "UD", "UD2", "UD_LTE", "UD_WCDMA", "AL", "AL_LTE", "CONFIG", "TS", "VERNO"].some(c => body.startsWith(c))) {
+          console.log(`⚠️ Unknown command from ${imei}: ${commandType}`);
+        }
       } else {
-        console.warn("Unexpected message format:", message);
+        console.warn(`⚠️ Unexpected message format from ${remoteAddress}:`, message);
       }
 
       startIdx = buffer.indexOf("[");
@@ -108,21 +192,35 @@ const tcpServer = net.createServer((socket) => {
   });
 
   socket.on("close", () => {
-    console.log("Connection closed:", remoteAddress);
+    const connectionDuration = ((Date.now() - connectionStartTime) / 1000).toFixed(2);
+    console.log(`\n🔌 Connection closed: ${remoteAddress}${deviceImei ? ` (IMEI: ${deviceImei})` : ""} - Duration: ${connectionDuration}s`);
+    console.log(`   Buffer at close: ${buffer.substring(0, 100)}${buffer.length > 100 ? '...' : ''}`);
+    
     // Remove socket from map if present
-    for (const [imei, s] of socketsByImei.entries()) {
-      if (s === socket) {
-        socketsByImei.delete(imei);
-        Device.findOneAndUpdate({ imei }, { connected: false }).catch(() => {});
-        console.log("Removed socket mapping for IMEI", imei);
-        break;
-      }
+    if (deviceImei) {
+      socketsByImei.delete(deviceImei);
+      Device.findOneAndUpdate({ imei: deviceImei }, { connected: false }).catch(() => {});
+      console.log(`🗑️ Removed socket mapping for IMEI ${deviceImei}`);
+    } else {
+      console.log(`⚠️ Connection closed without identifying IMEI - no messages received`);
     }
   });
 
   socket.on("error", (err) => {
-    console.error("Socket error", err);
+    console.error(`❌ Socket error from ${remoteAddress}:`, err.message);
   });
+
+  socket.on("timeout", () => {
+    console.warn(`⏱️ Socket timeout from ${remoteAddress} - but keeping connection open`);
+    // Don't destroy the socket, just log the timeout
+  });
+
+  // Log when connection is established but no data received yet
+  setTimeout(() => {
+    if (!deviceImei && socket.readyState === 'open') {
+      console.log(`⏳ Still waiting for data from ${remoteAddress} (5 seconds elapsed)`);
+    }
+  }, 5000);
 });
 
 tcpServer.on("error", (err) => {
@@ -213,6 +311,32 @@ app.post("/send-ts", async (req, res) => {
   const cmd = `[3G*${imei}*0002*TS]`;
   safeWrite(socket, cmd);
   return res.send({ sent: true, cmd });
+});
+
+// Endpoint to get server IP info (helpful for configuration)
+app.get("/server-info", (req, res) => {
+  res.send({
+    tcpPort: TCP_PORT,
+    httpPort: HTTP_PORT,
+    host: HOST,
+    note: "Make sure this IP and port are accessible from internet and firewall allows TCP connections on port " + TCP_PORT
+  });
+});
+
+// Endpoint to send CR (real-time position) command
+app.post("/send-cr", async (req, res) => {
+  const { imei } = req.body;
+  if (!imei) return res.status(400).send({ error: "imei required" });
+  const socket = socketsByImei.get(imei);
+  if (!socket) return res.status(404).send({ error: "device not connected" });
+
+  const cmd = `[3G*${imei}*0002*CR]`;
+  safeWrite(socket, cmd);
+  return res.send({ 
+    sent: true, 
+    cmd,
+    note: "Device will send position data every 20 seconds for 3 minutes"
+  });
 });
 
 // connect to mongo and start express
