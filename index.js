@@ -125,8 +125,16 @@ const tcpServer = net.createServer((socket) => {
   });
 });
 
+tcpServer.on("error", (err) => {
+  console.error("TCP Server error:", err);
+  if (err.code === "EADDRINUSE") {
+    console.error(`Port ${TCP_PORT} is already in use!`);
+  }
+});
+
 tcpServer.listen(TCP_PORT, HOST, () => {
-  console.log(`TCP server listening on ${HOST}:${TCP_PORT}`);
+  console.log(`✅ TCP server listening on ${HOST}:${TCP_PORT}`);
+  console.log(`📡 Ready to accept GPS connections on port ${TCP_PORT}`);
 });
 
 // --- Express app for admin endpoints ---
@@ -135,6 +143,38 @@ app.use(express.json());
 
 // simple health
 app.get("/health", (req, res) => res.send({ ok: true }));
+
+// Endpoint to check server status and connected devices
+app.get("/status", (req, res) => {
+  const connectedDevices = Array.from(socketsByImei.keys());
+  const deviceStatus = {};
+  for (const [imei, socket] of socketsByImei.entries()) {
+    deviceStatus[imei] = {
+      connected: socket.readyState === "open",
+      remoteAddress: socket.remoteAddress,
+      remotePort: socket.remotePort
+    };
+  }
+  
+  res.send({
+    tcpPort: TCP_PORT,
+    httpPort: HTTP_PORT,
+    host: HOST,
+    connectedDevices: connectedDevices.length,
+    devices: connectedDevices,
+    deviceStatus: deviceStatus
+  });
+});
+
+// Endpoint to list all devices from database
+app.get("/devices", async (req, res) => {
+  try {
+    const devices = await Device.find({}).sort({ lastSeenAt: -1 });
+    res.send({ devices });
+  } catch (err) {
+    res.status(500).send({ error: err.message });
+  }
+});
 
 // Endpoint to send "change server" command to a device (if connected)
 app.post("/change-server", async (req, res) => {
