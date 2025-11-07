@@ -254,7 +254,7 @@ app.use(express.json());
 app.get("/health", (req, res) => res.send({ ok: true }));
 
 // Endpoint to check server status and connected devices
-app.get("/status", (req, res) => {
+app.get("/status", async (req, res) => {
   const connectedDevices = Array.from(socketsByImei.keys());
   const deviceStatus = {};
   for (const [imei, socket] of socketsByImei.entries()) {
@@ -265,13 +265,28 @@ app.get("/status", (req, res) => {
     };
   }
   
+  // Get all devices from DB with last seen info
+  let allDevices = [];
+  try {
+    allDevices = await Device.find({}).sort({ lastSeenAt: -1 }).limit(50);
+  } catch (err) {
+    console.error("Error fetching devices:", err);
+  }
+  
   res.send({
     tcpPort: TCP_PORT,
     httpPort: HTTP_PORT,
     host: HOST,
     connectedDevices: connectedDevices.length,
-    devices: connectedDevices,
-    deviceStatus: deviceStatus
+    currentlyConnected: connectedDevices,
+    deviceStatus: deviceStatus,
+    allDevices: allDevices.map(d => ({
+      imei: d.imei,
+      lastSeenAt: d.lastSeenAt,
+      lastIp: d.lastIp,
+      connected: d.connected
+    })),
+    serverTime: new Date().toISOString()
   });
 });
 
