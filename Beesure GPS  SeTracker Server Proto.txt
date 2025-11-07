@@ -1,0 +1,2455 @@
+Beesure GPS  SeTracker Server Protocol
+
+  ---Update time on Aug.02, 2025
+
+
+
+Server Protocol contents (Free of charge)
+
+
+
+Device System firmware software is Language C ;( per company regulation, not ok to open any port for device system bottom software developing)
+
+App software language for IOS version is Object C,yet language for Android version is Java. 
+
+The server language is Node. JS
+
+
+key encryption is AES128, without MQTT( per company regulation, you can purchase our key protocol )
+
+Note: all the devices we FOTA to your server without any key .
+
+
+
+IMPORTANT NOTE: Your server end should turn off Active in server setting, since our device bottom layer already with LK every 5-8 minutes for keep the network connection, if you set your server Active, it will often stop the LK connections from the device .This is main issue some clients configuration our device in their serve and it drain down the battery very fast!!!(If you can not find it in your server , please kindly search TCP Active in google, you will understand it )
+
+
+
+****All the command on Server in Hex.
+
+****Server Protocol all GPRS Communications, devices work with sim card through Operator cellular network          
+
+
+
+No any space in the command strings.
+
+
+
+In the whole protocol all the command strings in the defined format of [manufacture*Device ID*content length*content], 
+
+
+
+*** the manufacturer defined two bit only, device ID is 10 numbers comes from the device IMEI ,IMEI registered in your server , the server identify the device per device ID number,the content length defined are 4 bit ASCII code, and the high digit bit forward and low digit bit afterward. from left to right,high digit bit  is on the left ,low digit bit is on the right. )
+
+
+
+For example, ASCII FFFF means the length is 65535.
+
+
+
+LEN is always change in each command string base on the correspondings content lenght , Example , length 162 in ASCII code is 00A2
+
+
+
+For example:
+
+
+
+Device send :
+
+[SG*YYYYYYYYYY*LEN*LK,steps,sleep body tumbling number ,battery capacity percentage]
+
+
+
+eg.[3G*8800000015*000D*LK,50,100,100]
+
+44444
+
+Note: Any string or command should start with [ and end with ],this is exactly comply even on server end TCP command .
+
+
+
+IMEI number
+
+--------------------------------------------------------------------------------------------------------------
+PART I. Device send command
+1. Link Keep=LK ( heartbeat package)
+(1) Device Send:
+
+ [CS*YYYYYYYYYY*LEN*LK]
+
+ Example:[3G*8800000015*0002*LK]
+
+Server reply:
+
+[CS*YYYYYYYYYY*LEN*LK]
+
+Example:[3G*8800000015*0002*LK]
+
+
+
+Note:Once connected with local network, the LK string will be send every 5-8 minutes, if the device not receive the reply from the server or the server not reply properly per our protocol , then it will send the linkkeep every minute, after failure of connection 5 times, the device will reboot
+
+
+
+(2) Device Send:
+
+[CS*YYYYYYYYYY*LEN*LK,step,sleep body tumbling number,battery status percentage]
+
+Example:[3G*8800000015*000D*LK,50,100,100]
+
+
+
+Server reply:
+
+[CS*YYYYYYYYYY*LEN*LK]
+
+Example:[3G*8800000015*0002*LK]
+
+
+
+Note: Once connected network, the LK will be send every 5-8 minutes, if the device not receive the reply or confirm from the server properly per our protocol, then it will send LK every minute, after failure of link 5 times, the device will be auto reboot
+
+
+
+【Both of upon (1)and (2) LK command exist and valid from device】
+
+
+
+Very important tip: The server must reply all LK command per our protocl! Otherwise the device will not send any other data , it will keep on sending the LK command every minute. Because the LK command is the only one maintenance the network connection, it's handshake between device and server .
+
+
+
+
+The most important is the device send whatever Linkkeep, your server need reply or confirm the Linkkeep properly for maintenance the network connection
+
+At the beginning half hour , the device send the Linkkeep every minute ; after half hour , it send Linkkeep every 5-8minutes
+
+This is handshakes between device and your server , so they know each other for keep the network connection, if not, the network disconnect;DO NOT SEND ANY STRANGE COMMAND to cause the disconnection or data traffic.
+
+
+
+***Set your server to persistent connection, after reply the LK , not disconnection.(Important )
+
+
+
+2. Position data (UD string)
+Device Send:
+
+[CS*YYYYYYYYYY*LEN*UD, the position data (Refer to Appendix I)]
+
+Example:[3G*8800000015*00CD*UD,180916,025723,A,22.570733,N,113.8626083,E,0.00,249.5,0.0,6,100,60,0,0,00000010,7,255,460,1,9529,21809,158,9529,63555,133,9529, 63554,129,9529,21405,126,9529,21242,124,9529,21151,120,9529,63556,119,0,40.7]
+
+
+
+Note：
+
+Data contents:
+
+UD-network information
+
+(Type:
+
+UD: that means the device is using 2G GSM network.
+
+UD_WCDMA: that means the device is using 3G WCDMA network.
+
+UD_LTE: that means the device is using 4G LTE network.)
+
+180916-date(date/month/year)
+
+025723-time(Greenwich meantime)(Hour/minute/second)
+
+A-gps Positioning is valid (A or V: A means GPS location is valid; V means GPS location is invalid,please check LBS or WIFI location data, Google API need change to Latitude and longitude .)
+
+22.570733-latitude
+
+N or S: North /South.
+
+113.8626083-longitude
+
+E or W: East / West.
+
+0.00-Speed (for a personal GPS tracker, we don't have speed data , this speed almost is no reference value)
+
+249.5-Direction (for a personal GPS tracker, this data almost is no reference value)
+
+0.0-altitude (height above sea level, this data almost is no reference value.)
+
+6-satellite numbers ( Effective)
+
+100-gsm signal strength(Full is 100)
+
+60-battery status ( Full is 100%)
+
+0-pedometer ( Counting steps number)
+
+0-tumbling times( Counting sleeping flipping)
+
+00000010-the device status，The data is hexadecimal,convert it in binary system is 0000 0000 0000 0000 0000 0000 0001 0000
+
+in the front of 4 bit of the string is status，the last 4 bit is alarm，0001, the number is mean the device is static-unmoving.( Please refer to the appendix form for the meaning of each bit.)
+
+7-local base station numbers
+
+255,460,1,9529,21809,158,9529,63555,133,9529,63554,129,9529,21405,126,9529,21242,124,9529,21151,120,9529,63556,119,local base station information
+
+0-WiFi valid number
+
+40.7-positioning accuracy，it's meter
+
+ 
+
+Server not  reply.
+
+
+
+(Note: this is the device send the realtime position report to the server )
+
+
+
+Note: the Google API need change to Latitude and longitude for indoors position from LBS or wifi
+
+
+
+Note: The device reports the location and status information according to the set interval, the server not reply.except in sleep /save power mode, but if the device gravity sensor detect any shaking or moving from different orientation , it will activate immediately and syncs the data per the defaulted setting time interval ,if no any manual request or server end remote request.
+
+
+
+( Note: the number of UD strings just base on the existing firmware software setting, some RT OS /CAT 1 device only 1 UD string after CR command)
+
+more detail information , please kindly refer to configuration guide in our company website :
+
+https://www.4p-touch.com/server-portal-configuration-guide.html
+
+
+
+
+
+3.Blind spot Data Supplements           
+Device send:
+
+[CS*YYYYYYYYYY*LEN*UD2, the position data (Refer to Appendix I )]
+
+Example:[3G*8800000015*00D0*UD2,180916,064032,A,22.570512,N,113.8623267,E,0.00,154.8,0.0,11,100,100,0,0,00000010,7,255,460,1,9529,21809,157,9529,21405,131,9529,63555,130,9529,21242,129,9529,63554,126,9529,63556,120,9529,21151,113,0,12.2]
+
+
+
+Server not reply.
+
+
+
+Note: Re-upload the data when happens once off-line or disconnection, and syncs the hitory position to server immediately once network valid and online again, it's ok for 3-5 positions in memory.
+
+
+
+
+
+4. Alarm data report (for 4G device , it's AL_LTE)
+Device Send:
+
+[CS*YYYYYYYYYY*LEN*AL, the position data (Refer to Appendix I )]
+
+Example:[3G*8800000015*00CD*AL,180916,064153,A,22.570512,N,113.8623267,E,0.00,154.8,0.0,11,100,100,0,0,00100018,7,0,460,1,9529,21809,155,9529,21242,132,9529,21405,131,9529,63554,131,9529,63555,130,9529,63556,118,9529,21869,116,0,12.4]
+
+
+
+Server reply:
+
+ [CS*YYYYYYYYYY*LEN*AL]
+
+Example:[3G*8800000015*0002*AL]
+
+
+
+Note: Device sends alarm information to the platform after alarming , if the device has not received the reply or confirm from server , then constant Alarming until receive the alarm confirmation
+
+
+
+eg.:[3G*4504816162*010A*AL_LTE,241020,085353,V,0.0,N,0.0,E,22.0,0,-1,1,100,35,0,0,00200000,1,1,460,11,30602,125639728,100,5,4P-Touch,bc:5f:f6:1e:07:be,-55,ChinaNet-a9Ld,c4:b8:b5:c4:14:79,-53,ChinaNet-CX9r,f0:92:b4:95:3d:b9,-57,5B,08:31:8b:ae:ef:c8,-66,TP-LINK_274E,
+
+50:bd:5f:80:27:4e,-63,0.0]
+
+
+
+Fall down is 00200000, the 21st bit
+
+(refer to Appendix I )（ refer to the server portal configuration guide）
+
+
+
+Count from right to left, the 1st bit is 0, the 21st bit is 00200000,the SOS AL is 16 bit is 00010000
+
+
+
+https://www.4p-touch.com/server-portal-configuration-guide.html
+
+
+
+
+
+5.Config command
+
+
+
+
+Device send:
+
+[CS*YYYYYYYYYY*LEN*CONFIG,XXXXX]
+
+Example:[3G*8800000015*len*CONFIG,TY:G75,UL:600,SY:1,CM:1]
+
+
+
+
+Note:Device type：TY
+
+Upload time interval：UL
+
+Education config：SY
+
+remote selfie：CM
+
+
+
+Server reply:
+
+[CS*YYYYYYYYYY*LEN*CONFIG,result]
+
+Example:[3G*8800000015*len*CONFIG,1]
+
+(Note: if you constantly receiving the Config command , you can reply this command to stop it )
+
+Result：
+
+1:Ok
+
+0:Fail
+
+
+
+------------------------------------------------------------------------------------------------------------------------------------
+
+
+
+PART II.Server send command
+1.APN setup
+
+
+
+Server send :
+
+
+
+[CS*YYYYYYYYYY*LEN*APN,APN name,,,MCCMNC code]
+
+
+
+Example :[3G*8800000015*0011*apn,cmnet,,,20634]
+
+
+
+Check the apn information and MCC and MNC code in an android phone, please kindly refer to our website for detail information:
+
+https://www.4p-touch.com/how-to-check-sim-card-apn-information-in-an-android-smart-phone.html
+
+(You can send TCP command from your server to set the apn or send SMS to set apn both ok)
+
+
+
+2. Time interval set up 
+Server send:
+
+[CS*YYYYYYYYYY*LEN*UPLOAD,time interval seconds]
+
+Example:[3G*8800000015*000A*UPLOAD,600]
+
+
+
+Device reply:
+
+[CS*YYYYYYYYYY*LEN*UPLOAD]
+
+Example:[3G*8800000015*0006*UPLOAD]
+
+
+
+Noted:Set the time interval for the device to upload datas automatically. The upload time interval for the device in dynamic state only, the device does not report the position data once the device in sleep/save power mode.If device gravity sensor detect that no any moving or shaking from the different orientation for 2 minutes , it will be auto go to sleep model , only send linkkeep for network connection .But if any moving or shaking , it will wake up and activate immediately ,and syncs the data per time interval from the second activate the system .the time interval is seconds,the minimal is 60 (seconds), the max is 65535 seconds.
+
+
+
+(All datas per time interval auto on server end to appear in historic tracking route, defaulted GPS positions only)
+
+
+
+3. Control password set up
+Server send :
+
+[CS*YYYYYYYYYY*LEN*PW,password]
+
+Example:[3G*8800000015*0009*PW,111111]
+
+
+
+Device reply:
+
+[CS*YYYYYYYYYY*LEN*PW]
+
+Example:[3G*8800000015*0002*PW]
+
+
+
+Note: set the device SMS control password,if any other phone number (except the center number) send SMS commands to the device should use this password.
+
+
+
+
+
+4. Outgoing calls
+Server send:
+
+[CS*YYYYYYYYYY*LEN*CALL,phone number]
+
+Example:[3G*8800000015*0010*CALL,00000000000]
+
+
+
+Device reply:
+
+[CS*YYYYYYYYYY*LEN*CALL]
+
+Example:[3G*8800000015*0004*CALL]
+
+
+
+Noted: The device will dial the corresponding phone number in this command once the device receive the command
+
+
+
+
+5. Center number set up
+Server send:
+
+[CS*YYYYYYYYYY*LEN*CENTER,center number]
+
+Example:[3G*8800000015*0012*CENTER,00000000000]
+
+
+
+Device reply:
+
+[CS*YYYYYYYYYY*LEN*CENTER]
+
+Example:[3G*8800000015*0006*CENTER]
+
+
+
+Note: set the center number,this center phone number ok to send the SMS command to the device. Meanwhile, all the SMS alarm alerts will send to this center number in the mobile phone.
+
+
+
+
+
+6.Listen in/ Voice Monitor( Optional)
+
+Server send:
+
+[3G*YYYYYYYYYY*LEN*MONITOR,phone number]-OK for any number
+
+Example:[3G*8800000015*0013*MONITOR,13100010002]
+
+
+
+Device reply:
+
+[CS*YYYYYYYYYY*LEN*MONITOR]
+
+Example:[3G*8800000015*0007*MONITOR]
+
+Note:the device automatic dial the preset monitor number, the smart phone end you can hear all the voice surrounding the device，the device end unnotice
+
+We put this spy feature optinal , if this feature in your local is illegal , we can remove it in the software .
+
+
+
+
+
+7.SOS number set up
+(1) First SOS number Set up
+
+Server send:
+
+[CS*YYYYYYYYYY*LEN*SOS1,phone number]
+
+Example:[3G*8800000015*0010*SOS1,00000000000]
+
+
+
+Device reply:
+
+[CS*YYYYYYYYYY*LEN*SOS1]
+
+Example:[3G*8800000015*0004*SOS1]
+
+
+
+(2) the second SOS number set up
+
+Server send:
+
+[CS*YYYYYYYYYY*LEN*SOS2, phone number]
+
+Example:[3G*8800000015*0010*SOS2,00000000000]
+
+
+
+Device reply:
+
+[CS*YYYYYYYYYY*LEN*SOS2]
+
+Example:[3G*8800000015*0004*SOS2]
+
+
+
+(3) The third SOS number set up
+
+Server send:
+
+[CS*YYYYYYYYYY*LEN*SOS3, phone number]
+
+Example:[3G*8800000015*0010*SOS3,00000000000]
+
+
+
+Device reply:
+
+[CS*YYYYYYYYYY*LEN*SOS3]
+
+Example:[3G*8800000015*0004*SOS3]
+
+
+
+(4)  set the 3 SOS number at the same time
+
+Server send:
+
+[CS*YYYYYYYYYY*LEN*SOS,phone number, phone number, phone number]
+
+Example:[3G*8800000015*0027*SOS,00000000000,00000000000,00000000000]
+
+
+
+Device reply:
+
+[CS*YYYYYYYYYY*LEN*SOS3]
+
+Example:[3G*8800000015*0003*SOS]
+
+
+
+Note:After setting the SOS numbers,once any emergency, the device will auto dial the 3 SOS numbers one by one , if any phone number pick up the call, it will stop dialing the next number; if none pick up, it will auto dial 3 SOS numbers in 2 rounds and then end it. Meanwhile, it will send the SOS alarm alerts to the 3 SOS numbers, likewise ,the Phone app end will also receive the SOS alarm push notification.
+
+【Note. To avoid the fault information, SOS SMS we removed the position information, phone user once receive the SOS SMS ， He/she need check the device real time position , because the SOS position is defaulted GPS position,not ok for LBS or wifi position, mostly received is last history GPS position】
+
+
+
+
+
+8.IP and port set up / Change the server portal
+Server send:
+
+[CS*YYYYYYYYYY*LEN*IP,IP or URL,port]
+
+Example:[3G*8800000015*0014*IP,113.81.229.9,5900]
+
+
+
+Device not reply this command, directly disconnect the current connection, it will auto connect the new server, but it need wait 5-8minutes , restart the device for exchange ip and port and check it on new server end.
+
+
+
+Note: this is for change device report all data to your private server  IP and port.
+
+
+
+( Note: No more SMS command to change the device server IP and port per EU required for safety issue.Only can send TCP command to change the server portal setting from the server end )
+
+
+
+1)Device on our server end ,just let us know the device imei, our engineer will remote FOTA to change it to your server 
+
+2)Device on your server, you can send the TCP command from your server end to change it to any server 
+
+(after TCP command , just need wait 6-8minutes , restart the device and check it on your server portal)
+
+
+
+*** for test the demo, you can advise us the device IMEI and your serer IP and port , our engineer will shift the device from our server end to your server ,once after device on your server , you can shift the device from your server to any other server . For bulk order, we will preset all your devices with your server Ip and port in the software before shipping it to you
+
+
+
+
+
+9. Restore factory setting
+Server send:
+
+[CS*YYYYYYYYYY*LEN*FACTORY]
+
+Example:[3G*8800000015*0007*FACTORY]
+
+
+
+Device reply:
+
+[CS*YYYYYYYYYY*LEN*FACTORY]
+
+Example:[3G*8800000015*0007*FACTORY]
+
+
+
+Note: The device restores factory original settings (if the device on your server , after factory setting, still on your server,just clear the cache and settings only)
+
+
+
+
+
+10. The language and time zone set up
+Server send:
+
+[CS*YYYYYYYYYY*LEN*LZ,language,time zone]
+
+Example:[3G*8800000015*0006*LZ,1,8]
+
+
+
+Device reply:
+
+[CS*YYYYYYYYYY*LEN*LZ]
+
+Example:[3G*8800000015*0002*LZ]
+
+
+
+Note: Set the device language and time zone (check your Local GMT ).
+
+
+
+The following is the parameter charactor of the language supported by the device: 
+
+0-English                       11-Greek                         22-Hebrew
+
+1-Simplify Chinese        12-Lingua Italiana           23-Danish
+3- Portuguese               13-Sweden                       25-Indian
+4-Spain                         14-Tradtional Chinese       26-Romania
+5-Deutsch                     15-Bulgarian                     27-Czech
+
+7-Turkish                       16-Dutch                          28-Arabia
+8-Vietnam                     17-Polish                           29-Polski
+
+9-Russia                        18-Finalnd                         34-Hungarian
+
+10-French                      19-Thailand                       36-Slovak
+
+
+
+Note：it's depends on if the correspondings language if valid in the watch device software .
+
+
+
+
+
+11. SOS SMS alarm Alert switch
+Server send:
+
+[CS*YYYYYYYYYY*LEN*SOSSMS,0 OR 1]
+
+Example:[3G*5678901234*0008*SOSSMS,0]
+
+
+
+Device reply:
+
+[CS*YYYYYYYYYY*LEN*SOSSMS]
+
+Example:[3G*5678901234*0006*SOSSMS]
+
+
+
+Note:this is send sms switch to sos numbers after there is sos alarm (0:OFF, 1:ON).
+
+
+
+
+
+12. Low battery alarm SMS alert switch
+Server send:
+
+[CS*YYYYYYYYYY*LEN*LOWBAT,0 or 1]
+
+Example:[3G*5678901234*0008*LOWBAT,1]
+
+
+
+Device reply:
+
+[CS*YYYYYYYYYY*LEN*LOWBAT]
+
+Example:[3G*5678901234*0006*LOWBAT]
+
+
+
+Note: this is send sms switch to center number once there is low battery alarm (0:OFF, 1: ON)  , less than 20% battery capacity, it will be triggle alarm alerts
+
+.
+
+
+
+13.Check the version
+Server send:
+
+[CS*YYYYYYYYYY*LEN*VERNO]
+
+Example:[3G*8800000015*0005*VERNO]
+
+
+
+Device reply:
+
+[CS*YYYYYYYYYY*LEN*VERNO,VERSION INFORMATION]
+
+Example:[3G*8800000015*0028*VERNO,G29_BASE_V1.00_2014.04.23_17.46.49]
+
+
+
+Note: check the device vision.
+
+
+
+
+
+
+
+
+14. check the device information and status on server ( valid depends on items firmware software)
+
+
+
+Server send:
+
+
+
+[3G*YYYYYYYYYY*0002*TS]
+
+
+
+Device reply:
+
+
+
+【ver:G4C_YSC_EMMC_240_5M_En_N_2023.11.10_15.38.00; 
+
+ID:XXXXXXXXXX; 
+
+imei:XXXXXXXXXXXXXXX; 
+
+url:52.18.132.157; port:8001; 
+
+upload:600; 
+
+lk:300;
+
+batlevel:87; 
+
+language:en; 
+
+zone:+01:00; 
+
+profile:1; (1-vibration and ringing,refer to 30.Scence mode)
+
+GPS:OK(0); 
+
+wifiOpen:false; 
+
+wifiConnect:false; 
+
+gprsOpen:true; 
+
+NET:OK(100)】
+
+
+
+
+
+15. Restart the device
+Server send:
+
+[CS*YYYYYYYYYY*LEN*RESET]
+
+Example:[3G*5678901234*0005*RESET]
+
+
+
+Device reply:
+
+[CS*YYYYYYYYYY*LEN*RESET]
+
+Example:[3G*5678901234*0005*RESET]
+
+
+
+Note:the device will be auto restart after receiving the command，the device just restart in the backstage and not show it on the device.
+
+
+
+
+
+16.Position command=Pressing Locate pin in App (This is the good way to fix the GPS position )
+Server send:
+
+[CS*YYYYYYYYYY*LEN*CR]
+
+Example:[3G*5678901234*0002*CR]
+
+
+
+Device reply:
+
+[CS*YYYYYYYYYY*LEN*CR]
+
+Example:[3G*5678901234*0002*CR]
+
+
+
+Note: Wake up the device GPS system positioning immediately and get the real time position, constant positioning for 3 minutes and send the position data every 20seconds  ,it will stop positioning after 3 minutes .
+
+
+
+( Your web server end need make the Locate button for this CR command for the users to Click it and check the realtime position of the device anytime )
+
+
+
+
+
+17. The remote shutdown command
+Server send:
+
+[CS*YYYYYYYYYY*LEN*POWEROFF]
+
+Example:[3G*5678901234*0008*POWEROFF]
+
+
+
+Device reply:
+
+[CS*YYYYYYYYYY*LEN*RESET]
+
+Example:[3G*5678901234*0008* POWEROFF]
+
+
+
+Note:the device will be auto shut down once receiving the command from server
+
+
+
+
+
+18. Take off the watch the alarm switch 
+( This is depends on the firmware features, Please kindly check the device firmware if with light sensor or not, if not , then unnecessary for configuration)--this is only for the GPS with valid light sensor for take off alerts feature only)
+Server send:
+
+[CS*YYYYYYYYYY*LEN*REMOVE,0 OR 1]
+
+Example:[3G*5678901234*0008*REMOVE,1]
+
+
+
+Device reply:
+
+[CS*YYYYYYYYYY*LEN*REMOVE]
+
+Example:[3G*5678901234*0006*REMOVE]
+
+
+
+Note: Take off the watch the alarm switch，(1:ON，0:OFF).
+
+ 
+
+*Take off the watch the SMS alarm alerts switch：
+
+Server send：
+
+[CS*YYYYYYYYYY*LEN*REMOVESMS,0 OR 1]
+
+
+
+Device reply:
+
+[CS*YYYYYYYYYY*LEN*REMOVESMS]
+
+
+
+Note：Take off the watch the SMS alarm alerts switch，(1:ON，0:OFF)
+
+
+
+
+
+19. Walktime set up* (Pedometer)-this is the switch to turn on the walktime
+Server send:
+
+[CS*YYYYYYYYYY*LEN*WALKTIME, time section, time section, time section]
+
+Example:[3G*5678901234*002A*WALKTIME,8:10-9:30,10:10-11:30,12:10-13:30]
+
+
+
+Device reply:
+
+[CS*YYYYYYYYYY*LEN*ANY]
+
+Example:[3G*5678901234*0008*WALKTIME]
+
+
+
+Note: set the walking time step counting time section.
+
+all our devices defaulted setting in the software the walktime is OFF, you need send the walktime command to switch ON.
+
+ 
+
+Note:The device records two values, one is the number of steps per day, which will be reset every day, and the other is the cumulative total number of steps, which will not be reset. What the device report to the server is the total number of steps, and the server software must calculate the number of steps per day based on the total number of steps uploaded, your software need set the correspondings physical body target in your app and it more accuracy .
+
+
+
+
+
+20. Sleep body tumbling time detection settings
+Platform send:
+
+[CS*YYYYYYYYYY*LEN*SLEEPTIME, time section]
+
+Example:[3G*5678901234*0014*SLEEPTIME,21:10-7:30]
+
+
+
+Device response:
+
+[CS*YYYYYYYYYY*LEN*ANY]
+
+Example:[3G*5678901234*0009*SLEEPTIME]
+
+
+
+Note: Sleep tumbling time detection settings in time section
+
+
+
+
+
+21. No disturb time section set up/ Class mode
+Server send:
+
+[CS*YYYYYYYYYY*LEN*SILENCETIME,time section, time section, time section, time section]
+
+Example:[3G*5678901234*0037*SILENCETIME,21:10-7:30,21:10-7:30,21:10-7:30,21:10-7:30]
+
+
+
+Device reply:
+
+[CS*YYYYYYYYYY*LEN*SILENCETIME]
+
+Example:[3G*5678901234*000B*SILENCETIME]
+
+
+
+Week version 【new】
+
+
+
+
+Server send :
+
+[CS*YYYYYYYYYY*LEN*SILENCETIME2,time section-week,time section-week,time section-week,time section-week]
+
+Example:
+
+[3G*5678901234*0037*SILENCETIME2,21:10-7:30-0111110,21:10-7:30-0111110,21:10-7:30-0111110,21:10-7:30-0111110]
+
+Device reply:
+
+[CS*YYYYYYYYYY*LEN*SILENCETIME2]
+
+Example:[3G*5678901234*000B*SILENCETIME2]
+
+
+Note: Set the do-not-disturb time period range, week sorting: Sunday, Monday, Tuesday, Wednesday, Thursday, Friday, Saturday. 0 is  off, 1 is on
+
+
+
+Note: Set the range of non-disturb time period or Class mode, the time period now ok for Sunday to Saturday, during the time period , the device will reject all the call, the watch screen will be locked , but only available for press SOS for emergency call.
+
+
+
+
+
+22.Find device set up
+Server send:
+
+[CS*YYYYYYYYYY*LEN*FIND]
+
+Example:[3G*5678901234*0004*FIND]
+
+
+
+Device response:
+
+[CS*YYYYYYYYYY*LEN*FIND]
+
+Example:[3G*5678901234*0004*FIND]
+
+
+
+Note: Send this command , the device ringing 1 minute, press the button to cancel ringing
+
+
+
+
+
+23. A number of small red flowers set up (For watch only)
+Server send:
+
+[CS*YYYYYYYYYY*LEN*FLOWER,flower pieces]
+
+Example:[3G*5678901234*0008*FLOWER,5]
+
+
+
+Device response:
+
+[CS*YYYYYYYYYY*LEN*FLOWER]
+
+Example:[3G*5678901234*0006*FLOWER]
+
+
+
+Note: the watch screen will appear the number of the red flowers.
+
+
+
+
+
+24. Alarm clock set command
+Server send:
+
+[CS*YYYYYYYYYY*LEN*REMIND,alarm 1,alarm 2,alarm 3]
+
+Example:[3G*5678901234*0018*REMIND,08:10-1-1,08:10-1-2, 08:10-1-3-0111110]
+
+
+
+Device response:
+
+[CS*YYYYYYYYYY*LEN*REMIND]
+
+Example:[3G*5678901234*0006*REMIND]
+
+
+
+Note:Clock alarm format：time-switch-how often(1：Once；2:every day;3: self defaulted)
+
+08:10-1-1：colock alarm time 8:10，ON，Once
+
+08:10-1-2：colock alarm time 8:10，ON，every day
+
+08:10-1-3-0111110：colock alarm time 8:10，ON，self defaulted monday to friday
+
+
+
+
+
+25.Voice chat /intercom chatting function
+（1）Server send voice message:
+
+[CS*YYYYYYYYYY*LEN*TK,AMR file audio data]
+
+
+
+Device reply:
+
+[CS*YYYYYYYYYY*LEN*TK,receive status]
+
+receive status:1—success receving
+
+0-    failure
+
+
+
+(Voice raw data only ok no more than 15 seconds)
+
+
+
+AMR audio raw data string if need save in server , it need to be changed the version as follows bin file，once the server receive the voice message or voice recorder the datas format on the left will changed to the data format on the right：
+
+0X7D 0X01 -->  0X7D
+
+0X7D 0X02 -->  0X5B
+
+0X7D 0X03 -->  0X5D
+
+0X7D 0X04 -->  0X2C
+
+0X7D 0X05 -->  0X2A
+
+( Please kindly refer to the below AMR file exchange to bin file, this is only for save voice data on server )
+
+ 
+
+（2）Device send the voice message:
+
+[CS*YYYYYYYYYY*LEN*TK,AMR audio data]
+
+Server reply:
+
+[CS*YYYYYYYYYY*LEN*TK, receive status]
+
+receive status:1—success receving
+
+0- failure
+
+ 
+
+AMR audio raw data string if need save in server , it need to be changed the version as follows bin file，once the server receive the voice message or voice recorder the datas format on the left will changed to the data format on the right：
+
+0X7D --> 0X7D 0X01
+
+0X5B --> 0X7D 0X02
+
+0X5D --> 0X7D 0X03
+
+0X2C --> 0X7D 0X04
+
+0X2A --> 0X7D 0X05
+
+
+
+( ***Please kindly refer to this AMR file exchange bin file templates )
+
+
+
+arm转义图解
+
+
+
+
+26.Device checking the offline voice message
+Device request server to send the voice message which saved in the server:
+
+[CS*YYYYYYYYYY*LEN*TKQ]
+
+
+
+Server reply：
+
+[CS*YYYYYYYYYY*LEN*TKQ]
+
+
+
+Device request server to send the friend's voice message which saved in the server：
+
+[CS*YYYYYYYYYY*LEN*TKQ2]
+
+
+
+Server reply：
+
+[CS*YYYYYYYYYY*LEN*TKQ2]
+
+
+
+
+27. Phrases Display set command ( This is for Intercom chatting only)
+Server send:
+
+[CS*YYYYYYYYYY*LEN*MESSAGE,phrases contents]
+
+Example:[3G*5678901234*0018*MESSAGE,597D003100320033]
+
+eg. server send 11a to the watch , [3G*8904366947*0014*MESSAGE,003100310061]
+
+
+
+Device reply :
+
+[CS*YYYYYYYYYY*LEN*MESSAGE]
+
+Example:[3G*5678901234*0007*MESSAGE]
+
+
+
+Note: this command push sending the phrases to watch and display it on watch screen ,the phrases contents in Uni code coding be sent to device.
+
+ 
+
+
+
+28.Phone book set up
+Server send（1-5 contacts）：
+
+[3G*8800000015*len*PHB,phone number,name, phone number,name, phone number,name, phone number,name, phone number,name, phone number,name]
+
+len: the contents length in hexadecimal ,Occupies 2 bytes
+
+phone number:ASCII code
+
+name:Unicode coding
+
+available for 5 names and 5 numbers the most,the phone number no more than 20 pieces ASCII characters，name no more than 10 pieces Unicode characters
+
+Example:
+
+[3G*8800000015*0010*PHB,110,5F204E09]
+
+
+
+Device reply：[3G*8800000015*0003*PHB]
+
+ 
+
+Server send（6-10 contacts）：
+
+[3G*8800000015*len*PHB2, phone number,name, phone number,name, phone number,name, phone number,name, phone number,name, phone number,name]
+
+len: the contents length in hexadecimal ,Occupies 2 bytes
+
+phone number:ASCII code
+
+name:Unicode coding
+
+available for 5 names and 5 numbers the most,the phone number no more than 20 pieces ascii characters，name no more than 10 pieces Unicode characters
+
+Example:
+
+[3G*8800000015*0010*PHB2,110,5F204E09]
+
+Device reply：[3G*8800000015*0004*PHB2]
+
+
+
+Note：PHB is for the front 5 numbers, PHB2 for the last 5 numbers
+
+
+
+
+
+
+
+
+*Phonebook contacts settings with avatar
+
+
+
+(Add it in batch contacts with avatar)
+
+Server send:
+
+[3G*7893267563*len*PHBX, number, name, phone number, photo data]
+
+
+
+(Ok for 30 contacts Max.）
+
+1. number 1-30
+
+2.name:Unicode coding
+
+3.phone number: ASCII code
+
+4. photo data
+
+
+
+Device reply: 
+
+[3G*7893267563*0002*PHBX, status code]
+
+Status code: 1——success 0——failure
+
+
+
+(Add the contact individually with avatar)
+
+
+
+Server send：
+
+[3G*YYYYYYYYYY*LEN*PHBX2,sum,name,tel,avatar,Type]
+
+sum：1-100
+
+name：unicode coding
+
+tel：phone number (ASCII code)
+
+Avator：image photo
+
+Type：avatar type 1-5（0-Custom（perhaps with avatar image），1-Dad，2-Mom，3-Grandfather，4-Grandmother，5-others）
+
+
+
+Device reply：
+
+[3G*YYYYYYYYYY*LEN*PHBX2,status]
+
+status code:1----Success，0----Failure
+
+
+
+
+
+Delete phonebook contact with avatar
+
+server send:
+
+[3G*7893267563*0002*DPHBX, number]
+
+
+
+Device reply: 
+
+[3G*7893267563*0002*PHBX, status code]
+
+Status code: 1——success 0——failure
+
+
+
+
+[3G*7304782138*0006*wdimgq] this is to request the offline photos
+
+
+
+
+
+
+
+29.Touch to add friend (for the same style watch only)
+Device send:
+
+[CS*YYYYYYYYYY*LEN*PP,the device current time,position data(see appendix one)]
+
+Example:[3G*8800000015*00D4*PP,091046,180916,085033,A,22.570193,N,113.8621950,E,0.48,60.3,0.0,9,100,100,0,0,00000010,7,255,460,1,9529,21809,160,9529,21405,
+
+133,9529,63555,133,9529,63554,124,9529,21242,119,9529,21151,118,9529,63574,116,0,23.2]
+
+
+
+Server response:
+
+situation 1：add friend success
+
+[SG*8800000015*LEN*ID]
+
+Example：[3G*8800000015*000A*8800000015]
+
+
+
+situation 2：add friend failure
+
+[SG*8800000015*LEN*X]
+
+X if 1 means the other device already add you as friends, X if 2 means you already add the other device as friends .
+
+Example：
+
+[3G*8800000015*0001*1]
+
+[3G*8800000015*0002*2]
+
+
+
+
+
+30.Remove single friend
+Server send：
+
+[SG*8800000015*0003*PPR]
+
+no reply from the device
+
+
+
+ 
+
+
+
+31.Scence mode
+
+
+
+Server send：
+
+[CS*YYYYYYYYYY*LEN*profile,x]
+
+X-1,2,3,4
+
+1-vibration and ringing
+
+2- ringing
+
+3- vibration
+
+4-silence
+
+
+
+Device response：
+[CS*YYYYYYYYYY*LEN*profile]
+
+
+
+
+
+
+
+32. White list set command
+Server send:
+
+[SG*YYYYYYYYYY*LEN*WHITELIST1, number 1, number 2, number 3, number 4, number 5]
+
+Example:[3G*5678901234*002D*WHITELIST1,123456,123456,123456,123456,123456]
+
+
+
+Device reply:
+
+[CS*YYYYYYYYYY*LEN*WHITELIST1]
+
+Example:[3G*5678901234*000A*WHITELIST1]
+
+Note: Establishes 1-5 white list number.
+
+
+
+
+
+Server send:
+
+[CS*YYYYYYYYYY*LEN*WHITELIST2, number 1, number 2, number 3, number 4, number 5]
+
+Example:[3G*5678901234*002D*WHITELIST2,123456,123456,123456,123456,123456]
+
+
+
+Device reply:
+
+[CS*YYYYYYYYYY*LEN* WHITELIST2]
+
+Example:[3G*5678901234*000A*WHITELIST2]
+
+Note: set 6-10 white list number.
+
+
+
+
+
+
+ 
+
+III.Heart Rate and Blood Pressure protocol
+
+
+1.*Sever remote request Heart rate and blood pressure:
+
+Server send:
+[3G*8800000015*len*hrtstart,x]
+
+x is 1 means device upload the heart rate datas single time, then auto stop after uploading. Eg.:[3G*9513979338*000a*hrtstart,1]
+
+
+x is 0 means device stop uploading the heart rate datas.
+
+Device reply:
+[3G*8800000015*len*hrtstart]
+
+Example:[3G*8800000015*0013*bphrt,112,73,67,,,,]
+
+Systolic blood pressure:112
+
+Diastolic blood pressure:73
+
+Heart rate:67
+
+
+
+2.*Server remote AUTO request Heart rate and blood pressure per time interval:( depends on the firmware, some firmware software still use this protocol , but the mostly new use the below update protocol)
+
+
+
+[3G*9513979338*000a*hrtstart,X]
+
+
+
+
+x is 1 means device upload the heart rate datas single time, then auto stop after uploading. 
+
+
+x is 0 means device stop uploading the heart rate datas.
+
+
+
+Eg.:[3G*9513979338*000a*hrtstart,1]    ---this is switch 
+
+
+
+[3G*9513979338*000c*hrtstart,300]      ------Every 5 minutes (Min.)
+
+
+
+(Auto measure it every 5 minutes=300seconds)
+
+
+
+Example:
+
+
+
+auto measure
+
+
+
+*New*Server remote AUTO request the health data per time interval ( 300seconds in min.)
+
+
+
+Server send :
+
+[3G*YYYYYYYYYY*LEN*HEALTHAUTOSET,type,status,interval]
+
+
+
+type :1:healthcare
+
+Status : 0:OFF ，1: ON
+
+interval : seconds
+
+
+
+eg.: [3G*9513979338*0015*HEALTHAUTOSET,1,1,300]
+
+
+
+
+
+
+
+3. *Heart rate and Blood pressure upload 【both measuring at the same time】
+
+ 
+
+Device upload:
+
+[3G*8800000015*len*bphrt,xx,xx,xx,xx,xx,xx,xx]
+
+ 
+
+The 1st parameter xx represents high pressure and 0 means invalid.
+
+The 2nd parameter xx represents low pressure and 0 means invalid.
+
+The 3rd parameter xx represents a heart rate of 0 for invalid
+
+The 4th parameter xx represents height in cm
+
+The 5th parameter xx represents gender 1 is male 2 is female
+
+The 6th parameter xx represents age
+
+The 7th parameter xx represents weight in KG
+
+
+
+ 
+
+Platform response:
+
+[3G*8800000015*len*bphrt]
+
+
+
+
+4.* SPO2 data sync protocol:【NEW】
+
+Device send:
+
+[3G*YYYYYYYYYY*LEN*oxygen,type,oxy]
+
+*type number:
+
+0-means manual measuring on device end
+
+oxy：SPO2 data
+
+
+
+
+
+Server reply:
+
+[3G*YYYYYYYYYY*LEN*oxygen,status]
+
+status number:
+
+1means normal ; 
+
+0 means abnormal ; 
+
+2 means error
+
+
+
+(Note:HR data rating set on your server :
+
+101-200times /minute-----High
+
+60-100times /minute------Normal
+
+∠60times/minute------Low
+
+
+
+BP data rating set on your server :
+
+90-139mmHg-------Systolic blood pressure
+
+60-89mmHg-------Diastolic blood pressure
+
+
+
+SPO2 data rating set on your server :
+
+
+90%-100%-----Good
+
+70%-89%------Average
+
+∠70%------Poor
+
+
+
+5.Voice Alarm version take medicine (request device reply)
+
+ 
+
+Server send:
+
+[3G*8800000015*len*TAKEPILLS, reminder settings, number, reminder text, voice data]
+
+ 
+
+Note: i. The value of the medication reminder function (DD) in the function configuration protocol CONFIG is configured as "2".
+
+DD - medication reminder function (0: no, 1: have (old version),                                         
+
+ ii: voice version
+
+ 
+
+1) reminder settings: the data format is the same as the alarm clock (time - switch - frequency - custom)
+
+ 
+
+2) number :1 - 3 (up to 3 reminders Max.)
+
+3) reminder text :unicode encoding
+
+4) the voice data can be empty (that is, no voice is set), but the protocol parameter format is unchanged (that is, there will be a comma ",")
+
+eg.:[3G*4804582612*002a*TAKEPILLS,11:25-1-2,1,006f00770070006d0067]
+
+Note:006f00770070006d0067 is HEX example of alarm text.
+
+ 
+
+If the audio is recorded, the recording file will be added at the end in ARM file:[3G*4804582612*002a*TAKEPILLS,11:25-1-2,1,006f00770070006d0067,audio file]
+
+ 
+
+Device reply:
+
+[3G*7893267563*0002*TAKEPILLS,status code]
+
+ 
+
+Status code: 1 - success 0 - failure
+
+
+
+ 
+
+
+
+Ⅳ.Remote Snapshot Command
+
+
+
+Server send：
+
+[CS*YYYYYYYYYY*LEN*rcapture]
+
+Example：
+
+[3G*8800000015*len*rcapture]
+
+
+
+Device reply：
+
+Upload picture command:
+
+[3G*8800000015*len*img,x,y,z]
+
+X  is 5：remote snapshot
+
+Y means ：time（year month date hour minute second：160429110950）
+
+Character Z is picture contents
+
+
+
+(Note: Z need refer to 24.Voice chat /intercom chatting function,the photo image raw data in hex. in AMR file need exchange bin file to save it Jpeg. )
+
+
+
+
+
+
+
+
+
+Ⅴ．Fall down alarm alert
+
+Server send:
+
+[3G*YYYYYYYYYY*LEN*FALLDOWN,X,Y]
+
+X  is Fall down alarm alert switch,1 is ON ;0 is OFF
+
+Y means once detect fall down, if need call the center number or not, 1 is ON ;0 is OFF
+
+
+
+Device reply：
+
+[3G*YYYYYYYYYY*LEN*FALLDOWN]
+
+
+
+ 
+
+Fall down detection sensitive setting
+
+ 
+
+Server send:
+
+[3G*4504816144*0009*LSSET,X+6]
+
+
+
+Or :[3G*4504816144*0009*LSSET,X+8]
+
+
+
+eg.:[3G*4504816144*0009*LSSET,5+8]
+
+ 
+
+X represents the current sensitivity level, 6 or 8 represents the total sensitivity level, it's base on correspondings item software setting.1 is the most sensitive .
+
+ 
+
+Device reply:[3G*4504816144*0007*LSSET,X]
+
+
+
+
+
+ 
+
+Ⅵ．Body Temperature Measure
+
+
+
+ This is depends on if firmware with valid temperature sensor
+
+
+
+1.Temperature upload from watch
+
+
+
+Device send:
+
+[3G*YYYYYYYYYY*LEN*btemp2,type,temp]
+
+Type ：measurement mode：0:forehead mode 1: wrist hand mode*
+
+Temp ：temperature degree，
+
+ 
+
+When temp=0, low temperature abnormal (measure abnormal)
+
+When temp=1, high temperature abnormal(measure abnormal)
+
+(Temperate degree ≥37.20℃ is high)
+
+
+
+Server reply：
+
+[3G*YYYYYYYYYY*LEN*btemp2]
+
+ 
+
+2. Real-time temperature request 
+
+Server send:
+
+[3G*YYYYYYYYYY*LEN*bodytemp2]
+
+ 
+
+Device reply：
+
+[3G*YYYYYYYYYY*LEN*bodytemp2]
+
+ 
+
+3.Temperature measurement request per time interval 
+
+
+
+Server send :
+
+[3G*YYYYYYYYYY*LEN*bodytemp,arg1,arg2]
+
+arg1 ：0 : turn off interval measurement  1 :turn on interval measurement
+
+arg2 ：2(1-12) :time interval, Unit: hour, Range: 1-12 （No data in night mode）
+
+ 
+
+Device reply：
+
+[3G*YYYYYYYYYY*LEN*bodytemp]
+
+
+
+
+
+ 
+
+Ⅶ．Wifi setting ( For 4G Anroid watch ONLY)
+
+ 
+
+1. Wifi search ：
+
+Server send :
+
+[CS*YYYYYYYYYY*LEN*WIFISEARCH]
+
+example:[3G*8800000015*000A*WIFISEARCH]
+
+
+
+Device reply:
+
+[CS*YYYYYYYYYY*LEN* WIFISEARCH,wifi numbers,WIFIID,SSID]
+
+example:
+
+[3G*8800000015*000A*WIFISEARCH,3,3gelec8888,08:c0:21:1e:68:e0,
+
+3gelec8888,08:c0:21:1e:68:e0, 3gelec8888,08:c0:21:1e:68:e0]
+
+
+
+Note:search device end wifi quantity
+
+ 
+
+2. Wifi set up：
+
+
+
+Server send :
+
+[CS*YYYYYYYYYY*LEN*WIFISET]
+
+example:[3G*8800000015*000A*WIFISET, WIFIID, WIFIpassword, SSID]
+
+
+
+Device reply:
+
+[CS*YYYYYYYYYY*LEN* WIFISET]
+
+example:
+
+[3G*8800000015*000A* WIFISET, 3gelec3,3gelec8888,08:c0:21:1e:68:e0]
+
+
+
+Note :set WIFI password
+
+ 
+
+3. Wifi delete
+
+
+
+Server send :
+
+[CS*YYYYYYYYYY*LEN*WIFIDEL]
+
+example:[3G*8800000015*000A*WIFIDEL,WIFIID,SSID]
+
+
+
+Device reply:
+
+[CS*YYYYYYYYYY*LEN* WIFIDEL]
+
+example:
+
+[3G*8800000015*000A*WIFIDEL,3gelec3,08:c0:21:1e:68:e0]
+
+
+
+Note:Delete WIFI
+
+ 
+
+4．Check the currently connected wifi
+
+
+
+Server send :
+
+[CS*YYYYYYYYYY*LEN*WIFICUR]
+
+Example:[3G*8800000015*000A*WIFICUR]
+
+
+
+Device reply:
+
+[CS*YYYYYYYYYY*LEN* WIFICUR, WIFIID, SSID]
+
+example:
+
+[3G*8800000015*000A*WIFICUR,3gelec3,08:c0:21:1e:68:e0]
+
+
+
+Note:check the currently connected wifi information
+
+0 means disconnection。
+
+ 
+
+ 
+
+2019-05-31 updated：
+
+ 
+
+5．Wifi setting modified report
+
+Note ：After the user sets the wifi information through the APP, and then resets the cached wifi through the smart phone watch wifi setting menu, the modified information needs to be reported
+
+Device report:
+
+[CS*YYYYYYYYYY*LEN*WIFIINFOUP, wifi_name, wifi_password, wifi_ssid]
+
+ 
+
+wifi_name                (HEX)
+
+wifi_password                (HEX)
+
+wifi_ssid                         
+
+ 
+
+Server reply:
+
+[CS*YYYYYYYYYY*LEN* WIFIINFOUP,status]
+
+ 
+
+status：
+
+ 
+
+-1：data length wrong
+
+0：server un-normal
+
+1：Success
+
+
+
+ 
+
+*4G GPS watch GPS switch-important( defaulted ON, unnecessary)
+
+ 
+
+For 4G watch ,There is a command need send from server end to control GPS positioning before the GPS position will be uploaded. By default, GPS positioning is not enabled.
+
+[3G*0304927626*000C*APPLOCK,DW-1]
+
+
+
+***Turn On the GPS switch for your devices on your server end.
+
+ 
+
+Noted :1 is ON, 0 is OFF
+
+
+
+
+
+*Night mode Switch ( Un-necessary, all our items already defaulted setting it OFF)
+
+ 
+
+Night power saving mode is on
+
+
+
+[3G*0304927626*000C*APPLOCK,YJ-1]
+
+
+
+Night power saving mode is off--important
+
+
+
+[3G*0304927626*000C*APPLOCK,YJ-0]
+
+
+
+***Defaulted setting turn OFF the Night power saving mode for all your devices on your server end.
+
+
+
+
+
+*Reject stanger calling in
+
+
+
+Note: The defaulted in software is off, you can ON it in your server setting
+
+
+
+Server send:
+
+[3G*YYYYYYYYYY*LEN*DEVREFUSEPHONESWITCH,1]
+
+switch state, 0--OFF, 1--ON
+
+
+
+Device reply:
+
+[3G*YYYYYYYYYY*LEN*DEVREFUSEPHONESWITCH]
+
+
+
+Note: this only valid once after you preset the SOS numbers and contacts in phone book in the app or in the server .
+
+
+
+
+
+
+
+*Watch Dial plate switch 
+
+(if you not allow the user dail any number in the watch , just lock the dail plate)
+
+
+
+
+server send :[3G*2503210421*000C*APPLOCK,PH-1]
+
+
+
+switch state: PH-1 ON， PH-0 OFF
+
+
+
+
+
+
+
+* Auto answer call/pick up
+
+
+
+Server end:
+
+
+
+OFF Auto Answer：[3G*YYYYYYYYYY*LEN*ACALL,0]
+
+ON Auto Answer: [3G*YYYYYYYYYY*LEN*ACALL,*********,*********,*********]
+
+Example:
+
+
+
+Server send:
+
+[3G*8800000015*001D*ACALL,134********,0755*******]
+
+
+
+Device reply:
+
+[3G*8800000015*0005*ACALL]
+
+
+
+Note:if you need turn on call auto answer call for the device ,you need set the phone numbers in the TCP command (the max. number you can set is 15 numbers , same as you saved in the phone book for the device);When modifying the phone book, numbers that do not exist in the phone book also must be deleted from the defined numbers in the TCP command at the same time; It can only be set for 10 seconds ring time for the device after dial . Manually select the number in the contact to answer automatically in the app or in the server .
+
+
+
+Ⅷ. Appendix
+Appendix I: Location  Data Notes
+Description
+
+Examples  (ASII code)
+
+Note
+
+Date
+
+120414
+
+ (day month year) April 21, 2014
+
+Time
+
+101930
+
+(hour, minutes   and seconds) ten nineteen 30 seconds
+
+Position status
+
+A
+
+A: Valid positioning V: Invalid positioning
+
+latitude
+
+22.564025
+
+According to the definition of DD.DDDDDD format, this latitude value is: 22.564025
+
+Mark of latitude
+
+N
+
+N   expresses the north latitude, S expresses the south latitude.
+
+Longitude
+
+113.242329
+
+According to the definition of   DDD.DDDDDD format, this longitude value is: 113.242329.
+
+Mark   of longitude
+
+E
+
+E   expresses the east longitude, W expresses the west longitude
+
+Speed
+
+5.21
+
+5.21 km / hour.
+
+Direction
+
+152
+
+In the direction of 152 degrees.
+
+Altitude
+
+100
+
+Unit is meters
+
+satellite   number
+
+9
+
+Indicates that the GPS satellite number
+
+signal   intensity GSM
+
+100
+
+That represents the current GSM signal intensity (0-100)
+
+Power status
+
+90
+
+Battery capacity status %
+
+Pedometer
+
+1000
+
+Count the number of steps
+
+Body Tumbling times
+
+50
+
+Body Tumbling 50 times
+
+Device   status
+
+00000000(Hexadecimal)
+
+Indicated   with HEX string of character , the meaning is as follows:
+
+The   high 16bit expression alarming, low 16bit expression condition(from left to right).
+
+The Bit position (0 starts)  Meaning (1 Effective)
+
+0                          Low battery state
+
+1                          out of fence state
+
+2                          Enter the fence state
+
+3                          watch state
+
+4                          Device no moving state
+
+16                        SOS alarm
+
+17                        Low battery alarm
+
+18                        out fence alarm
+
+19                        Into the fence alarm
+
+20                        Remove the watch alarm 
+
+21                        Fall down alarm 
+
+22                        Abnormal heart rate alarm
+
+Base   stations number 
+
+1
+
+upload Base stations number, 0 expressions does not uplaod the base station number
+
+connect Base station number
+
+1
+
+GSM Time delay
+
+MCC code
+
+460
+
+MCC country code
+
+MNC   code
+
+02
+
+MNC network number
+
+Base   station location area code
+
+10133
+
+Area code
+
+Nearby   the base station numbers
+
+5173
+
+base station serial No.
+
+base   station signal strength
+
+100
+
+Signal strength
+
+Nearby   the base station 1 location area code
+
+10133
+
+Area code
+
+Nearby   the base station 1 number
+
+5173
+
+base station serial No.
+
+nearby   the base station 1 signal strength
+
+100
+
+Signal strength
+
+Nearby   the base station 2 location area code
+
+10133
+
+Area code
+
+Nearby   the base station 1 number
+
+5173
+
+base station serial No.
+
+nearby   the base station 2 signal strength
+
+100
+
+Signal strength
+
+Nearby   the base station 3 location area code
+
+10133
+
+Area code
+
+Nearby   the base station 3 number
+
+5173
+
+base station serial No.
+
+nearby   the base station 3 signal strength
+
+100
+
+Signal strength
+
+…
+
+…
+
+…
+
+Wifi hotspots valid
+
+5
+
+Wifi hotspot valid quantity(the most 5),per the signal strength
+
+Wifi 1name
+
+rrr
+
+The 1st wifi name
+
+Wifi 1 MAC address
+
+1c:fa:68:13:a5:b4
+
+Wifi 1 MAC address
+
+Wifi 1 signal strength
+
+-61
+
+Wifi 1 signal strength
+
+Wifi 2 name
+
+abc
+
+The 2nd wifi name
+
+Wifi 2 MAC address
+
+1c:fa:68:13:a5:b5
+
+Wifi 2 MAC address
+
+Wifi 2 signal strength
+
+-87
+
+Wifi 2 signal strength
+
+…
+
+…
+
+…
+
+
+
+Good news!
+
+New! (For 4G watch with camera ONLY)
+
+
+
+The IC provider ok to open the protocol of the free video call for Android watch and RT OS watches , 2 way free video call between the watch and phone app end or with PC server end (one time certain charge please kindly check with 4P-Touch sales)
+
+the app end fee
+
+the PC server end fee
+
+
+
+(we will create the engineer team group chat to assist you to get done on your phone app end or on your server end , if video call not necessary for you , please kindly ignore it )
+
+
+
+refer to our company website for video call feature more information :https://www.4p-touch.com/new-lanuched-4g-gps-watch-video-call-free-global.html
+
+
+
+The 2 way video call free between the watch and phone app, between watch and PC server end , this is good for the control center
+
+VAWhatsApp Image 2021-05-21 at 18.37.59 (1)
+
+WhatsApp Image 2021-05-21 at 18.38.00 (1)WhatsApp Image 2021-05-21 at 18.38.00
+
+canoe Leasing business management
+
+tengo este gps y quiero conectarlo a mi backend expo y app con expo 
+
+
+
+
+

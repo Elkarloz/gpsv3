@@ -1,0 +1,28 @@
+{
+  "name": "gps-tracker-server",
+  "version": "1.0.0",
+  "description": "TCP server for GPS tracker devices with MongoDB storage",
+  "type": "module",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "dev": "nodemon index.js"
+  },
+  "keywords": [
+    "gps",
+    "tracker",
+    "tcp",
+    "server"
+  ],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "express": "^4.18.2",
+    "mongoose": "^8.0.3",
+    "dotenv": "^16.3.1"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.2"
+  }
+}
+

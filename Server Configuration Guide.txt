@@ -1,0 +1,302 @@
+Server Configuration Guide
+
+
+
+     1.Domain is ok to reach, but easy to get disconnected,because domain is not stable, not sure if DNS is complete 100% parse ,we suggest use the TCP/IP socket server 
+
+      i)server Domain address or IP address both to be ok to used as long as they can guarantee the correct domain name be parsed. The reason for using IP is to avoid the error           of domain name parsed.
+
+     ii)Our protocol is TCP/IP, not HTTP, not https
+
+     iii)All GPRS communication, not UDP, not ok for data cable configuration.
+
+
+
+     App software language:Android verison is Java; IOS version is Object C
+
+     Server running software language is Node.JS
+
+     Firmware software is Language C
+
+     It's TCP/IP socket server, GPRS communication only, key encryption is AES128, without MQTT
+
+
+
+     The most important is the device send whatever Linkkeep, your server need reply or confirm the Linkkeep for maintenance the network connection
+
+     At the beginning half hour , the device every minute send the Linkkeep;if connected/online , after half hour , it send Linkkeep every 5-8minutes
+
+     This is handshake , so they know each other for keep the network connection, if not, the network disconnect
+
+     TKQ2 is offline voice message
+
+
+
+     2.Are you using a Google API for position? If not, perhaps you should look for it: https://developers.google.com/maps/documentation/geolocation/intro
+
+
+
+      It is important to take into consideration that all GPS devices working indoors will have a big GPS error, and that LBS and WiFi information needs a good source of data and            also a highly actualized database of those ID’s in the Google Geolocation API.
+
+      You will need to add some extra processing to the location algorithm in order to avoid satellite jumps, corrupted data, low accuracy places, improve the WiFi usage and so on.        This is a good practice in any LBS software. Here is up to you all the logic that you want to use, if calculate averages, if cross against historical data of the same device, if                  always lock the position when GPS is not fixed, etc.
+
+
+
+      3.The server IP and port only can change from server end,IMEI should be registered in your server , the server identify the device per device ID number. After change the IP               and port from server end, just reboot the device and wait 6-8 minutes is fine , so you can check the ts# reply , you will see if switch the server successful. 
+
+IMEI number
+
+
+
+      GPS with micro phone and speaker, it’s feature phone system, with SIM card for voice+data features
+
+      GPS system consists of feature phone ic chipset +GPS mode+WiFi mode (optional)
+
+      GPS work with phone app is phone to phone, machine to machine
+
+
+
+     4.This is the example to show you the server end data
+
+3333
+
+
+
+     All the HEX. need convert to ASCII code
+
+
+
+i) Link keep :
+
+    HEX: 5B33472A303330343138373130392A303030392A4C4B2C302C302C32315D
+
+    ASCII: [3G*0304187109*0009*LK,0,0,21]
+
+    and should receive response equal to the one mounted: [3G*0304187109*0002*LK]
+
+
+
+    Example:[CS*YYYYYYYYYY*LEN*LK]
+
+    [3G*8800000015*0002*LK]---length is changed base on the length of the contents
+
+
+
+    Device Send:
+
+    [CS*YYYYYYYYYY*LEN*LK,step, tumbling number,battery status percentage]
+
+    Example:[3G*8800000015*000D*LK,50,100,100]
+
+44444
+
+ii) message:
+
+     HEX: 5B33472A303330343138373130392A303030392A46465A4450415948355D
+
+     ASCII: [3G*0304187109*0009*FFZDPAYH5]
+
+
+
+
+iii) SOS Alert with different code ( AL_LTE):
+
+    HEX: 5B33472A303330343138373130392A303132302A414C5F4C54452C3331303132302C3138343235312C562C302E302C4E2C302E302C452C32322E302C302C2D
+
+    312C302C3130302C31312C302C302C30303031303030312C312C312C3333342C3032302C31333031312C32333135323135342C3130302C352C52454355504552414
+
+    3494F4E534C542C37383A38613A32303A38313A65363A64662C2D35342C524543555045524143494F4E534C542C37383A38613A32303A38313A66623A65382C2D3
+
+    6342C524543555045524143494F4E534C542C37383A38613A32303A38313A65363A65302C2D36352C41524C4F5F564D425F313536323739383634372C38633A3362
+
+    3A61643A66623A35393A38362C2D37332C4C757A3030322C30633A66383A39333A37623A66383A31302C2D38352C302E305D
+
+
+
+   ASCII: [3G*0304187109*0120*AL_LTE,310120,184251,V,0.0,N,0.0,E,22.0,0,-1,0,100,11,0,0,00010001,1,1,334,020,13011,23152154,100,5,RECUPERACIONSLT,78:8a:20:81:e6:df,
+
+   -54,RECUPERACIONSLT,78:8a:20:81:fb:e8,-64,RECUPERACIONSLT,78:8a:20:81:e6:e0,-65,ARLO_VMB_1562798647,8c:3b:ad:fb:59:86,-73,Luz002,0c:f8:93:7b:f8:10,-85,0.0]
+
+
+
+ⅳ) Position message with different code (UD_LTE):
+
+    HEX: 5B33472A303330343138373130392A303132302A55445F4C54452C3331303132302C3138343334372C562C302E302C4E2C302E302C452C32322E302C302C2D312C302
+
+    C3130302C31312C302C302C30303030303030312C312C312C3333342C3032302C31333031312C32333135323135312C3130302C352C524543555045524143494F4E534C
+
+    542C37383A38613A32303A38313A65363A64662C2D35342C524543555045524143494F4E534C542C37383A38613A32303A38313A66623A65382C2D36342C524543555
+
+    045524143494F4E534C542C37383A38613A32303A38313A65363A65302C2D36352C41524C4F5F564D425F313536323739383634372C38633A33623A61643A66623A35
+
+    393A38362C2D37332C4C757A3030322C30633A66383A39333A37623A66383A31302C2D38352C302E305D
+
+
+
+    ASCII: [3G*0304187109*0120*UD_LTE,310120,184347,V,0.0,N,0.0,E,22.0,0,-1,0,100,11,0,0,00000001,1,1,334,020,13011,23152151,100,5,RECUPERACIONSLT,78:8a:20:81:e6:df,
+
+   -54,RECUPERACIONSLT,78:8a:20:81:fb:e8,-64,RECUPERACIONSLT,78:8a:20:81:e6:e0,-65,ARLO_VMB_1562798647,8c:3b:ad:fb:59:86,-73,Luz002,0c:f8:93:7b:f8:10,-85,0.0]
+
+
+
+Alarm
+
+
+
+ⅴ)The alarm bit of our protocol is 8-bit hexadecimal, and one hexadecimal is composed of 4-bit binary
+
+    4*8 is 32-bit, and our protocol can represent 32-bit status, of which the lower 16 bits represent the status ( our GPS don’t have any status ), and the higher 16 bits represent          the alarm ( count from the right to left,the 1st bit is 0 ,start with 0),but alarm just once,the low battery alarm the 17th bit is 00020000,the SOS alarm the 16th bit is 00010000,      if the both alarm together , should be 00030000; the fall down alarm 21th bit is 00200000
+
+66666The top is hexadecimal, the bottom is binary
+
+777777
+
+
+     please kindly note the GPS device get the position physical time is 3 minutes , the device send the UD every 20seconds
+
+     normally receive 6 , 9 or 12 UD is ok, but V is invalid GPS position in UD, only A is valid GPS position in UD
+
+     after CR command from the server ,there is coming 6UD, 9UD or 12 UD is normal , only take the A valid GPS position in UD string
+
+
+
+5.Below this is the pedometer protocol only
+
+
+
+    Walktime set up* (Pedometer)
+
+    Platform send:
+
+    [CS*YYYYYYYYYY*LEN*WALKTIME, time section, time section, time section]
+
+    Example:[3G*5678901234*002A*WALKTIME,8:10-9:30,10:10-11:30,12:10-13:30]
+
+    Device reply:
+
+    [CS*YYYYYYYYYY*LEN*ANY]
+
+    Example:[3G*5678901234*0008*WALKTIME]
+
+    Note: set the walking time step counting time section.
+
+    Note:The device records two values, one is the number of steps per day, which will be reset every day,
+
+    and the other is the cumulative total number of steps, which will not be reset. What the device report to
+
+    the server is the total number of steps, and the server must calculate the number of steps per day based
+
+    on the total number of steps uploaded
+
+
+
+6.HR and BPM datas report at the same time , this is the one need configuration now for all our senior GPS, please kindly advise your team
+
+    ⅰ) This is server end remote to get the HR and BP date protocol
+
+
+
+   *Platform remote request Heart rate and blood pressure:
+
+    Platform send:
+
+    [3G*8800000015*len*hrtstart,x]
+
+    x is 1 means device upload the heart rate datas single time, then auto stop after uploading.
+
+    Eg.:[3G*9513979338*000a*hrtstart,1]
+
+    x is 0 means device stop uploading the heart rate datas.
+
+    Device reply:
+
+    [3G*8800000015*len*hrtstart]
+
+    [3G*8800000015*0013*bphrt,112,73,67,,,,]
+
+    Systolic blood pressure:112
+
+    Diastolic blood pressure:73
+
+    Heart rate:67
+
+
+
+
+
+    ii) This is the device end report the HR and BP datas to server end protocol
+
+
+
+
+     Heart rate and Blood pressure upload( both measuring at the same time)
+
+     Device upload:
+
+     [3G*8800000015*len*bphrt,xx,xx,xx,xx,xx,xx,xx]
+
+     The 1st parameter xx represents high pressure and 0 means invalid.
+
+     The 2nd parameter xx represents low pressure and 0 means invalid.
+
+     The 3rd parameter xx represents a heart rate of 0 for invalid
+
+     The 4th parameter xx represents height in cm
+
+     The 5th parameter xx represents gender 1 is male 2 is female
+
+     The 6th parameter xx represents age
+
+     The 7th parameter xx represents weight in KG
+
+     Platform reply:
+
+     [3G*8800000015*0005*bphrt]
+
+
+(Please kindly note the SPO2 is algorithm data in app and on server end, after you configuration HR and BP in your server ,SPO2 data will be auto on server end.)
+
+HRBPSpO2
+
+
+
+
+HRBP
+
+
+
+
+7.GEO-fence is set on server end , not on app end
+
+
+
+8.Please kindly note if the device not shaking or moving from the different orientation for 2 minutes, the device will auto go to hibernation mode,but if any shaking or moving from different orientation , it will wake up immediately
+
+
+
+During hibernation , only Linkkeep , no any data transfer
+
+In disconnection, no network, no linkkeep , no data transfer. But after connect the network, the device will update the position immediately
+
+
+
+9.If your server end constant receiving the CONFIG data from the device  this is the device configuration command， your server ok to reply command to stop it.
+
+
+[3G*7703713643*0008*CONFIG,1]
+
+
+
+Other command if unnecessary just reply it to stop it on your server end if device keep on repeat sending it.
+
+eg.: [3G*7103000140*0005*ICCID] 
+
+ [3G*7103000140*0006* RYIMEI]
+
+ [3G*7103000140*000D* APPCONTACTTEL]
+
+
+
+
+
+Please kindly note 4G GPS device use the smart phone IC , so many command and data we also not know it , it's something related phone features, if any datas not ok to verified in the protocol, just ignore it or stop it.
