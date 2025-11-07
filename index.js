@@ -43,6 +43,7 @@ function safeWrite(socket, data) {
 const tcpServer = net.createServer((socket) => {
   const remoteAddress = socket.remoteAddress + ":" + socket.remotePort;
   console.log(`\n🔌 New TCP connection from ${remoteAddress}`);
+  console.log(`   Waiting for GPS device data... (connection tests will close immediately)`);
 
   // IMPORTANT: Keep connection alive - don't close after LK response
   // Set TCP keepalive to maintain persistent connection
@@ -58,7 +59,7 @@ const tcpServer = net.createServer((socket) => {
     // Log raw data received (both hex and ascii for debugging)
     const hexData = chunk.toString('hex').toUpperCase();
     const asciiData = chunk.toString('utf8');
-    console.log(`📥 Raw data received from ${remoteAddress}:`);
+    console.log(`📥 Raw data received from ${remoteAddress} (${chunk.length} bytes):`);
     console.log(`   HEX: ${hexData.substring(0, 100)}${hexData.length > 100 ? '...' : ''}`);
     console.log(`   ASCII: ${asciiData.substring(0, 100)}${asciiData.length > 100 ? '...' : ''}`);
     
@@ -193,16 +194,26 @@ const tcpServer = net.createServer((socket) => {
 
   socket.on("close", () => {
     const connectionDuration = ((Date.now() - connectionStartTime) / 1000).toFixed(2);
-    console.log(`\n🔌 Connection closed: ${remoteAddress}${deviceImei ? ` (IMEI: ${deviceImei})` : ""} - Duration: ${connectionDuration}s`);
-    console.log(`   Buffer at close: ${buffer.substring(0, 100)}${buffer.length > 100 ? '...' : ''}`);
+    const hadData = buffer.length > 0;
     
-    // Remove socket from map if present
+    console.log(`\n🔌 Connection closed: ${remoteAddress}${deviceImei ? ` (IMEI: ${deviceImei})` : ""} - Duration: ${connectionDuration}s`);
+    
     if (deviceImei) {
+      // Real GPS device
       socketsByImei.delete(deviceImei);
       Device.findOneAndUpdate({ imei: deviceImei }, { connected: false }).catch(() => {});
       console.log(`🗑️ Removed socket mapping for IMEI ${deviceImei}`);
+    } else if (!hadData && connectionDuration < 1) {
+      // Likely a connection test (like Test-NetConnection, telnet, nc, etc.)
+      console.log(`🧪 This appears to be a connection test (no data sent, closed quickly)`);
+      console.log(`   ✅ Port is accessible - GPS devices will send data when they connect`);
     } else {
-      console.log(`⚠️ Connection closed without identifying IMEI - no messages received`);
+      console.log(`⚠️ Connection closed without identifying IMEI`);
+      if (hadData) {
+        console.log(`   Buffer at close: ${buffer.substring(0, 100)}${buffer.length > 100 ? '...' : ''}`);
+      } else {
+        console.log(`   No data received - GPS may not be configured correctly`);
+      }
     }
   });
 
