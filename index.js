@@ -328,15 +328,20 @@ app.post("/change-server", async (req, res) => {
 });
 
 // Endpoint to send TS (verify) command
+// Ejemplo para enviar el comando TS:
+// const tsCommand = `[3G*8800000015*0002*TS]`;
+// socket.write(tsCommand);
+// console.log("📤 Sent TS command to device");
 app.post("/send-ts", async (req, res) => {
   const { imei } = req.body;
   if (!imei) return res.status(400).send({ error: "imei required" });
   const socket = socketsByImei.get(imei);
   if (!socket) return res.status(404).send({ error: "device not connected" });
 
-  const cmd = `[3G*${imei}*0002*TS]`;
-  safeWrite(socket, cmd);
-  return res.send({ sent: true, cmd });
+  const tsCommand = `[3G*${imei}*0002*TS]`;
+  safeWrite(socket, tsCommand);
+  console.log(`📤 Sent TS command to device ${imei}`);
+  return res.send({ sent: true, cmd: tsCommand });
 });
 
 // Endpoint to get server IP info (helpful for configuration)
